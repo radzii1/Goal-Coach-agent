@@ -3,14 +3,83 @@ from openai import OpenAI
 import json
 import os
 from datetime import datetime
-import streamlit as st
-from openai import OpenAI
-import json
-from datetime import datetime
 
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# ── PASTE ALL YOUR FUNCTIONS HERE ──
+# ── CUSTOM CSS ──
+st.markdown("""
+<style>
+    /* Main background */
+    .stApp {
+        background-color: #FFF0F3;
+        font-family: 'Georgia', serif;
+    }
+    
+    /* Chat input */
+    .stChatInput input {
+        background-color: #FFE4E9;
+        border: 1px solid #FFB3C1;
+        border-radius: 20px;
+        color: #5C2D3E;
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background-color: #FFB3C1;
+        color: #5C2D3E;
+        border: none;
+        border-radius: 20px;
+        font-size: 14px;
+        padding: 8px 20px;
+    }
+    .stButton > button:hover {
+        background-color: #FF85A1;
+        color: white;
+    }
+    
+    /* Metrics */
+    [data-testid="metric-container"] {
+        background-color: #FFE4E9;
+        border-radius: 12px;
+        padding: 12px;
+        border: 1px solid #FFB3C1;
+    }
+    
+    /* Info box */
+    .stAlert {
+        background-color: #FFE4E9;
+        border: 1px solid #FFB3C1;
+        border-radius: 12px;
+        color: #5C2D3E;
+    }
+    
+    /* Chat messages */
+    .stChatMessage {
+        background-color: #FFF5F7;
+        border-radius: 16px;
+        padding: 8px;
+    }
+
+    /* Title */
+    h1 {
+        color: #C2185B;
+        font-family: 'Georgia', serif;
+        text-align: center;
+    }
+    
+    /* Subtext */
+    p {
+        color: #7B3F5E;
+    }
+
+    /* Divider */
+    hr {
+        border-color: #FFB3C1;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ── MEMORY FUNCTIONS ──
 def load_memory():
     try:
         with open('goal_coach_memory.json', 'r') as f:
@@ -111,7 +180,7 @@ Come back tomorrow and tell me what you did."""
 
     todays = get_todays_task(memory)
     complete_keywords = ["done", "completed", "finished", "did it", "complete"]
-    
+
     if any(word in user_message.lower() for word in complete_keywords):
         result = mark_complete(memory)
         nudge = generate_nudge(memory, user_message)
@@ -125,31 +194,25 @@ Today's task: {todays['task']}
 
 {nudge}"""
 
-# ── STREAMLIT UI ──
-st.set_page_config(page_title="Goal Coach Agent", page_icon="🎯", layout="centered")
-
-st.title("🎯 Goal Coach Agent")
-st.write("Set your goal. Check in daily. Get held accountable.")
+# ── UI ──
+st.title("🌸 Goal Coach")
+st.markdown("<p style='text-align:center; font-size:16px;'>Set your goal. Show up daily. Get held accountable.</p>", unsafe_allow_html=True)
 
 memory = load_memory()
 
-# Show progress if goal exists
 if memory["goal"]:
     st.divider()
     col1, col2, col3 = st.columns(3)
-    col1.metric("Current Day", f"{memory['current_day']}/30")
-    col2.metric("Completed", f"{len(memory['completed_days'])} days")
-    col3.metric("Remaining", f"{30 - len(memory['completed_days'])} days")
-    
+    col1.metric("📅 Day", f"{memory['current_day']}/30")
+    col2.metric("✅ Done", f"{len(memory['completed_days'])}")
+    col3.metric("🎯 Left", f"{30 - len(memory['completed_days'])}")
     st.divider()
-    st.markdown(f"**Your goal:** {memory['goal']}")
-    
+    st.markdown(f"<p style='font-size:14px;'>🌷 <b>Your goal:</b> {memory['goal']}</p>", unsafe_allow_html=True)
     if memory["plan"] and memory["current_day"] <= 30:
-        st.info(f"📅 **Today's task (Day {memory['current_day']}):** {memory['plan'][memory['current_day']-1]}")
+        st.info(f"📅 **Today (Day {memory['current_day']}):** {memory['plan'][memory['current_day']-1]}")
 
 st.divider()
 
-# Chat interface
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -157,29 +220,23 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-if not memory["goal"]:
-    placeholder = "Tell me your goal for the next 30 days..."
-else:
-    placeholder = "How's it going? Tell me what you did today..."
+placeholder = "Tell me your 30-day goal..." if not memory["goal"] else "How's it going today? 🌸"
 
 if prompt := st.chat_input(placeholder):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.write(prompt)
-
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
+        with st.spinner("🌸 Thinking..."):
             memory = load_memory()
             response = run_agent(prompt, memory)
         st.write(response)
-    
     st.session_state.messages.append({"role": "assistant", "content": response})
     st.rerun()
 
-# Reset button
 if memory["goal"]:
     st.divider()
-    if st.button("🔄 Reset and set new goal"):
+    if st.button("🔄 Reset and start fresh"):
         if os.path.exists('goal_coach_memory.json'):
             os.remove('goal_coach_memory.json')
         st.session_state.messages = []
